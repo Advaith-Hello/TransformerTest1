@@ -1,6 +1,6 @@
 from jax import jit
 from functools import partial
-from . import layers
+from my_project import layers
 
 
 @partial(jit, static_argnums=2)

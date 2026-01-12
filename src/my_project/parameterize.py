@@ -2,7 +2,6 @@ import jax.numpy as jnp
 import jax.random as jrd
 
 
-
 def parameterize(structure, init_key=0) -> list:
     key = jrd.PRNGKey(init_key)
     params = []

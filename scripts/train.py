@@ -3,141 +3,46 @@ import jax.numpy as jnp
 
 import optax
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
-import tensorflow_datasets as tfds
 
 from jax import jit
 from tqdm import tqdm
 
 from my_project import loss as loss_fns
+from my_project import sample_models
 from my_project import parameterize
+from my_project import get_data
 from my_project import forward
 
 
-tf.config.set_visible_devices([], "GPU")
-
-
-batch_size = 256
-patch_size_dim = 4
-num_patches_per_dim = 28 // patch_size_dim  # 7
-num_patches = num_patches_per_dim ** 2  # 49
-patch_size = patch_size_dim * patch_size_dim  # 16
-
-train_ds, test_ds = tfds.load(
-    "fashion_mnist",
-    split=["train", "test"],
-    as_supervised=True,
+# (num_batches, batch_size, num_patches, patch_size)
+(train_x, train_y), (test_x, test_y) = get_data.get_data(
+    batch_size=256,
+    patch_size_dim=4,
+    dataset="fashion_mnist",
+    max_per_split=[60_000, 10_000]
 )
 
-def augment(img, lbl):
-    img = tf.cast(img, tf.float32)
-    img = tf.image.random_flip_left_right(img)
-    img = tf.image.resize_with_crop_or_pad(img, 32, 32)
-    img = tf.image.random_crop(img, size=[28, 28, 1])
-    return img, lbl
-
-train_ds = train_ds.map(augment, num_parallel_calls=tf.data.AUTOTUNE)
-
-train_ds = train_ds.batch(60000)
-test_ds  = test_ds.batch(10000)
-
-raw_train_x, raw_train_y = next(iter(tfds.as_numpy(train_ds)))
-raw_test_x, raw_test_y   = next(iter(tfds.as_numpy(test_ds)))
-
-train_x = jnp.array(raw_train_x, dtype=jnp.float32) / 255.0
-train_y = jnp.array(raw_train_y, dtype=jnp.int32)
-
-test_x = jnp.array(raw_test_x, dtype=jnp.float32) / 255.0
-test_y = jnp.array(raw_test_y, dtype=jnp.int32)
-
-
-def images_to_patches(x):
-    x = x.reshape(
-        x.shape[0],
-        num_patches_per_dim,
-        patch_size_dim,
-        num_patches_per_dim,
-        patch_size_dim
-    )
-    x = x.transpose(0, 1, 3, 2, 4)
-    x = x.reshape(x.shape[0], num_patches, patch_size)
-    return x
-
-
-num_train_batches = train_x.shape[0] // batch_size
-num_test_batches = test_x.shape[0] // batch_size
-
-train_x = train_x[:num_train_batches * batch_size]
-train_y = train_y[:num_train_batches * batch_size]
-test_x = test_x[:num_test_batches * batch_size]
-test_y = test_y[:num_test_batches * batch_size]
-
-train_x = images_to_patches(train_x).reshape(num_train_batches, batch_size, num_patches, patch_size)
-train_y = train_y.reshape(num_train_batches, batch_size)
-
-test_x = images_to_patches(test_x).reshape(num_test_batches, batch_size, num_patches, patch_size)
-test_y = test_y.reshape(num_test_batches, batch_size)
-
-# (num_batches, batch_size, num_patches, patch_size)
 print("Data shapes:")
 print("\t", train_x.shape, " ", train_y.shape, sep="")
-print("\t", test_x.shape, " ", test_y.shape, sep="")
+print("\t", test_x.shape,  " ", test_y.shape,  sep="")
+print("")
 
 
-structure = (
-    ("linear", (16, 64)),
-    ("positional_embedding", (49, 64)),
-    ("layer_norm", (64,)),
-
-    ("collect_residual", ()),
-    ("attention", (64, 64, 64)),
-    ("add_residual", ()),
-    ("layer_norm", (64,)),
-
-    ("collect_residual", ()),
-    ("linear", (64, 128)),
-    ("relu", ()),
-    ("linear", (128, 64)),
-    ("add_residual", ()),
-    ("layer_norm", (64,)),
-
-    ("collect_residual", ()),
-    ("attention", (64, 64, 64)),
-    ("add_residual", ()),
-    ("layer_norm", (64,)),
-
-    ("collect_residual", ()),
-    ("linear", (64, 128)),
-    ("relu", ()),
-    ("linear", (128, 64)),
-    ("add_residual", ()),
-    ("layer_norm", (64,)),
-
-    ("mean_pool", ()),
-    ("linear", (64, 10)),
-)
-
-params = parameterize.parameterize(structure, init_key=0)
+model = sample_models.model1
+params = parameterize.parameterize(model, init_key=0)
 
 
 @jit
 def train_step(carry, ds):
     curr_params, curr_opt_state = carry
-    loss, grads = loss_fns.cross_entropy_loss_value_and_grad(*ds, curr_params, structure)
+    loss, grads = loss_fns.cross_entropy_loss_value_and_grad(*ds, curr_params, model)
     updates, curr_opt_state = optimizer.update(grads, curr_opt_state, curr_params)
     curr_params = optax.apply_updates(curr_params, updates)
     return (curr_params, curr_opt_state), loss
 
 
-@jit
-def calc_accuracy(x, y, curr_params):
-    logits = forward.forward(x, curr_params, structure)
-    x_hat = jnp.argmax(logits, axis=1)
-    return jnp.sum(y == x_hat) / x_hat.shape[0]
-
-
-epochs = 50
+epochs = 100
 
 schedule = optax.warmup_cosine_decay_schedule(
     init_value=0.0,
@@ -167,19 +72,17 @@ for i in tqdm(range(epochs)):
     )
 
     total_test_losses[i] = np.array([
-        loss_fns.cross_entropy_loss(test_x[j], test_y[j], params, structure)
+        loss_fns.cross_entropy_loss(test_x[j], test_y[j], params, model)
         for j in range(test_x.shape[0])
     ])
 
-    total_train_accuracy[i] = np.array([
-        calc_accuracy(train_x[j], train_y[j], params)
-        for j in range(train_x.shape[0])
-    ])
+    logits = forward.forward(train_x, params, model)
+    pred = jnp.argmax(logits, axis=-1)
+    total_train_accuracy[i] = jnp.mean(pred == train_y)
 
-    total_test_accuracy[i] = np.array([
-        calc_accuracy(test_x[j], test_y[j], params)
-        for j in range(test_x.shape[0])
-    ])
+    logits = forward.forward(test_x, params, model)
+    pred = jnp.argmax(logits, axis=-1)
+    total_test_accuracy[i] = jnp.mean(pred == test_y)
 
 
 fig, axs = plt.subplots(ncols=2, figsize=(10, 4))
