@@ -4,12 +4,11 @@ import tensorflow_datasets as tfds
 
 from typing import Any
 from jax import Array
-from my_project.data_utils import batch_and_patch
+from my_project.data_utils import batch
 
 
 def get_data(
         batch_size: int,
-        patch_size_dim: int,
         dataset: str,
         max_per_split: list[int],
     ) -> tuple[tuple[Any, Array], tuple[Any, Array]]:
@@ -31,7 +30,7 @@ def get_data(
     test_x  = jnp.array(raw_test_x, dtype=jnp.float32) / 255.0
     test_y  = jnp.array(raw_test_y, dtype=jnp.int32)
 
-    train_x, train_y = batch_and_patch(train_x, train_y, batch_size=batch_size, patch_size_dim=patch_size_dim)
-    test_x, test_y   = batch_and_patch(test_x, test_y, batch_size=batch_size, patch_size_dim=patch_size_dim)
+    train_x, train_y = batch(train_x, train_y, batch_size=batch_size)
+    test_x, test_y   = batch(test_x, test_y, batch_size=batch_size)
 
     return (train_x, train_y), (test_x, test_y)
