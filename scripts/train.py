@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 from jax import jit
 from tqdm import tqdm
 
+from my_project.samples import sample_models
+from my_project.samples import sample_augments
+
 from my_project import loss as loss_fns
-from my_project import sample_models
 from my_project import parameterize
 from my_project import get_data
 from my_project import forward
