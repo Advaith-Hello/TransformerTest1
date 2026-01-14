@@ -7,8 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from jax import jit
+from jax import vmap
 from tqdm import tqdm
 
+from my_project.augment import augment
 from my_project.samples import sample_models
 from my_project.samples import sample_augments
 
@@ -19,7 +21,6 @@ from my_project import forward
 from my_project import augment
 
 
-# (num_batches, batch_size, num_patches, patch_size)
 (train_x, train_y), (test_x, test_y) = get_data.get_data(
     batch_size=256,
     dataset="fashion_mnist",
@@ -47,6 +48,16 @@ def train_step(carry, ds):
     curr_params = optax.apply_updates(curr_params, updates)
     return (curr_params, curr_opt_state, curr_key), loss
 
+
+eval_loss_fn = jit(vmap(
+    lambda x, y: loss_fns.cross_entropy_loss(x, y, params, model),
+    in_axes=(0, 0)
+))
+
+eval_forward_fn = jit(vmap(
+    lambda x: forward.forward(x, params, model),
+    in_axes=0
+))
 
 epochs = 100
 
@@ -77,20 +88,24 @@ for i in tqdm(range(epochs)):
         (train_x, train_y),
     )
 
-    """
-    total_test_losses[i] = np.array([
-        loss_fns.cross_entropy_loss(test_x[j], test_y[j], params, model)
-        for j in range(test_x.shape[0])
-    ])
+    aug_train_x, _ = augment.augment_ds(
+        train_x, key,
+        sample_augments.augments_vit_testing
+    )
+    aug_test_x, _ = augment.augment_ds(
+        test_x, key,
+        sample_augments.augments_vit_testing
+    )
 
-    logits = forward.forward(train_x, params, model)
-    pred = jnp.argmax(logits, axis=-1)
-    total_train_accuracy[i] = jnp.mean(pred == train_y)
+    total_test_losses[i] = np.array(eval_loss_fn(aug_test_x, test_y))
 
-    logits = forward.forward(test_x, params, model)
-    pred = jnp.argmax(logits, axis=-1)
-    total_test_accuracy[i] = jnp.mean(pred == test_y)
-    """
+    train_logits = eval_forward_fn(aug_train_x)
+    train_pred = jnp.argmax(train_logits, axis=-1)
+    total_train_accuracy[i] = jnp.mean(train_pred == train_y)
+
+    test_logits = eval_forward_fn(aug_test_x)
+    test_pred = jnp.argmax(test_logits, axis=-1)
+    total_test_accuracy[i] = jnp.mean(test_pred == test_y)
 
 
 fig, axs = plt.subplots(ncols=2, figsize=(10, 4))

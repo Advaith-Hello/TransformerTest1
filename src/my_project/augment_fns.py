@@ -98,8 +98,8 @@ def cutout(x, cutout_proportion, key):
     key, k1, k2 = jrd.split(key, num=3)
 
     cut_h, cut_w = (
-        int(cutout_proportion) * int(x.shape[1]),
-        int(cutout_proportion) * int(x.shape[2]),
+        int(cutout_proportion * x.shape[1]),
+        int(cutout_proportion * x.shape[2]),
     )
 
     y_start = jrd.randint(k1, (), minval=0, maxval=(x.shape[1] - cut_h + 1))

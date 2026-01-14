@@ -1,4 +1,4 @@
-from jax import jit
+from jax import jit, vmap
 from functools import partial
 from my_project import layers
 
@@ -34,3 +34,9 @@ def forward(x, params, structure):
             raise Exception("Unidentified layer " + layer)
 
     return x
+
+
+@partial(jit, static_argnums=2)
+@partial(vmap, in_axes=(0, None, None))
+def forward_ds(x, params, structure):
+    return forward(x, params, structure)
