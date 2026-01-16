@@ -50,12 +50,12 @@ def train_step(carry, ds):
 
 
 eval_loss_fn = jit(vmap(
-    lambda x, y: loss_fns.cross_entropy_loss(x, y, params, model),
+    lambda x, y, p: loss_fns.cross_entropy_loss(x, y, p, model),
     in_axes=(0, 0)
 ))
 
 eval_forward_fn = jit(vmap(
-    lambda x: forward.forward(x, params, model),
+    lambda x, p: forward.forward(x, p, model),
     in_axes=0
 ))
 
@@ -97,13 +97,13 @@ for i in tqdm(range(epochs)):
         sample_augments.augments_vit_testing
     )
 
-    total_test_losses[i] = np.array(eval_loss_fn(aug_test_x, test_y))
+    total_test_losses[i] = np.array(eval_loss_fn(aug_test_x, test_y, params))
 
-    train_logits = eval_forward_fn(aug_train_x)
+    train_logits = eval_forward_fn(aug_train_x, params)
     train_pred = jnp.argmax(train_logits, axis=-1)
     total_train_accuracy[i] = jnp.mean(train_pred == train_y)
 
-    test_logits = eval_forward_fn(aug_test_x)
+    test_logits = eval_forward_fn(aug_test_x, params)
     test_pred = jnp.argmax(test_logits, axis=-1)
     total_test_accuracy[i] = jnp.mean(test_pred == test_y)
 
