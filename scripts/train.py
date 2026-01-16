@@ -35,7 +35,7 @@ print("")
 
 key = jrd.PRNGKey(0)
 model = sample_models.model1
-augments = sample_augments.augments1
+augments = sample_augments.augments_ViT_fashion_mnist_1
 params = parameterize.parameterize(model, init_key=0)
 
 
@@ -118,4 +118,5 @@ axs[1].set_title(f"Train accuracy (blue) vs Test accuracy (red) over {epochs} ep
 axs[1].plot(np.mean(total_train_accuracy, axis=1), color='blue')
 axs[1].plot(np.mean(total_test_accuracy, axis=1), color='red')
 
+plt.tight_layout()
 plt.show()

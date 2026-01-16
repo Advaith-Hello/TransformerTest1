@@ -36,7 +36,14 @@ images_to_patches: patch_size
 from my_project import augment_fns
 
 
-augments1 = (
+augments_fashion_mnist_1 = (
+    (augment_fns.pad_to, (32, 32)),
+    (augment_fns.crop_to, (28, 28)),
+    (augment_fns.horizontal_flip, 0.5),
+    (augment_fns.cutout, 0.2),
+)
+
+augments_ViT_fashion_mnist_1 = (
     (augment_fns.pad_to, (32, 32)),
     (augment_fns.crop_to, (28, 28)),
     (augment_fns.horizontal_flip, 0.5),
@@ -44,11 +51,17 @@ augments1 = (
     (augment_fns.images_to_patches, 4),
 )
 
-augments2 = (
+augments_mnist_1 = (
+    (augment_fns.pad_to, (36, 36)),
+    (augment_fns.crop_to, (28, 28)),
+    (augment_fns.cutout, 0.4),
+)
+
+augments_ViT_mnist_1 = (
     (augment_fns.pad_to, (32, 32)),
     (augment_fns.crop_to, (28, 28)),
-    (augment_fns.horizontal_flip, 0.5),
-    (augment_fns.cutout, 0.2),
+    (augment_fns.cutout, 0.4),
+    (augment_fns.images_to_patches, 4),
 )
 
 augments_vit_testing = (
