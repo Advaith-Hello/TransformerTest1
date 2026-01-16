@@ -51,12 +51,12 @@ def train_step(carry, ds):
 
 eval_loss_fn = jit(vmap(
     lambda x, y, p: loss_fns.cross_entropy_loss(x, y, p, model),
-    in_axes=(0, 0)
+    in_axes=(0, 0, None)
 ))
 
 eval_forward_fn = jit(vmap(
     lambda x, p: forward.forward(x, p, model),
-    in_axes=0
+    in_axes=(0, None)
 ))
 
 epochs = 100
