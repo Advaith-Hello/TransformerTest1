@@ -25,7 +25,7 @@ BATCH_SIZE = 256
 
 (train_x, train_y), (test_x, test_y) = get_data.get_data(
     batch_size=BATCH_SIZE,
-    dataset="fashion_mnist",
+    dataset="mnist",
     max_per_split=[60_000, 10_000]
 )
 
@@ -37,7 +37,7 @@ print("")
 
 key = jrd.PRNGKey(0)
 model = sample_models.model1
-augments = sample_augments.augments_ViT_fashion_mnist_1
+augments = sample_augments.augments_ViT_mnist_1
 params = parameterize.parameterize(model, init_key=0)
 
 
@@ -62,11 +62,13 @@ eval_forward_fn = jit(vmap(
 ))
 
 epochs = 100
+num_batches = int(train_x.shape[0])
+
 schedule = optax.warmup_cosine_decay_schedule(
     init_value=0.0,
     peak_value=3e-4,
-    warmup_steps=(10 * train_x.shape[0] // BATCH_SIZE),
-    decay_steps=(epochs * train_x.shape[0] // BATCH_SIZE),
+    warmup_steps=((epochs // 4) * num_batches),
+    decay_steps=(epochs * num_batches),
     end_value=1e-5
 )
 
@@ -104,7 +106,7 @@ for i in tqdm(range(epochs)):
     test_logits = eval_forward_fn(aug_test_x, params)
     test_pred = jnp.argmax(test_logits, axis=-1)
 
-    total_train_losses[i] = np.mean(curr_loss)
+    total_train_losses[i] = jnp.mean(curr_loss)
     total_test_losses[i] = jnp.mean(eval_loss_fn(aug_test_x, test_y, params))
     total_test_accuracy[i] = jnp.mean(test_pred == test_y)
     total_train_accuracy[i] = jnp.mean(train_pred == train_y)
@@ -113,12 +115,12 @@ for i in tqdm(range(epochs)):
 fig, axs = plt.subplots(ncols=2, figsize=(10, 4))
 
 axs[0].set_title(f"Train loss (blue) vs Test loss (red) over {epochs} epochs")
-axs[0].plot(np.mean(total_train_losses, axis=1), color='blue')
-axs[0].plot(np.mean(total_test_losses, axis=1), color='red')
+axs[0].plot(total_train_losses, color='blue')
+axs[0].plot(total_test_losses, color='red')
 
 axs[1].set_title(f"Train accuracy (blue) vs Test accuracy (red) over {epochs} epochs")
-axs[1].plot(np.mean(total_train_accuracy, axis=1), color='blue')
-axs[1].plot(np.mean(total_test_accuracy, axis=1), color='red')
+axs[1].plot(total_train_accuracy, color='blue')
+axs[1].plot(total_test_accuracy, color='red')
 
 plt.tight_layout()
 plt.show()
