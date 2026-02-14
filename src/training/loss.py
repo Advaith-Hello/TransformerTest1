@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import optax
 
 from jax import jit
-from my_project import forward
+from training import forward
 
 
 def cross_entropy_loss_raw_python(x, y, params, structure):

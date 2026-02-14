@@ -1,7 +1,7 @@
 """
 Sample augments for usage
-Augments can be run with my_project.augment.augment()
-All augments are @jit functions from my_project.augment_fns
+Augments can be run with data_loading.augment.augment()
+All augments are @jit functions from data_loading.augment_fns
 
 pad_to: (height, width)
     Pads image equally on both axis with zeros
@@ -33,8 +33,7 @@ images_to_patches: patch_size
     This augmentation does not change the values
 """
 
-from my_project import augment_fns
-
+from data_loading import augment_fns
 
 augments_fashion_mnist_1 = (
     (augment_fns.pad_to, (32, 32)),

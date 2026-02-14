@@ -4,7 +4,7 @@ import tensorflow_datasets as tfds
 
 from typing import Any
 from jax import Array
-from my_project.data_utils import batch
+from data_loading.data_utils import batch
 
 
 def get_data(

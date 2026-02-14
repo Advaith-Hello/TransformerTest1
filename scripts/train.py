@@ -10,19 +10,21 @@ from jax import jit
 from jax import vmap
 from tqdm import tqdm
 
-from my_project.augment import augment
-from my_project.samples import sample_models
-from my_project.samples import sample_augments
+from data_loading.augment import augment
+from models import sample_models
+from models import sample_augments
 
-from my_project import loss as loss_fns
-from my_project import parameterize
-from my_project import get_data
-from my_project import forward
-from my_project import augment
+from training import loss as loss_fns
+from training import parameterize
+from training import forward
+from data_loading import augment, get_data
 
+
+
+BATCH_SIZE = 256
 
 (train_x, train_y), (test_x, test_y) = get_data.get_data(
-    batch_size=256,
+    batch_size=BATCH_SIZE,
     dataset="fashion_mnist",
     max_per_split=[60_000, 10_000]
 )
@@ -60,12 +62,11 @@ eval_forward_fn = jit(vmap(
 ))
 
 epochs = 100
-
 schedule = optax.warmup_cosine_decay_schedule(
     init_value=0.0,
     peak_value=3e-4,
-    warmup_steps=10 * len(train_x),
-    decay_steps=len(train_x) * epochs,
+    warmup_steps=(10 * train_x.shape[0] // BATCH_SIZE),
+    decay_steps=(epochs * train_x.shape[0] // BATCH_SIZE),
     end_value=1e-5
 )
 
@@ -76,13 +77,13 @@ optimizer = optax.adamw(
 
 opt_state = optimizer.init(params)
 
-total_train_losses = np.empty(shape=(epochs, train_x.shape[0]))
-total_test_losses = np.empty(shape=(epochs, test_x.shape[0]))
-total_train_accuracy = np.empty(shape=(epochs, train_x.shape[0]))
-total_test_accuracy = np.empty(shape=(epochs, test_x.shape[0]))
+total_train_losses = np.empty(epochs)
+total_test_losses = np.empty(epochs)
+total_train_accuracy = np.empty(epochs)
+total_test_accuracy = np.empty(epochs)
 
 for i in tqdm(range(epochs)):
-    (params, opt_state, key), total_train_losses[i] = lax.scan(
+    (params, opt_state, key), curr_loss = lax.scan(
         train_step,
         (params, opt_state, key),
         (train_x, train_y),
@@ -97,15 +98,16 @@ for i in tqdm(range(epochs)):
         sample_augments.augments_vit_testing
     )
 
-    total_test_losses[i] = np.array(eval_loss_fn(aug_test_x, test_y, params))
-
     train_logits = eval_forward_fn(aug_train_x, params)
     train_pred = jnp.argmax(train_logits, axis=-1)
-    total_train_accuracy[i] = jnp.mean(train_pred == train_y)
 
     test_logits = eval_forward_fn(aug_test_x, params)
     test_pred = jnp.argmax(test_logits, axis=-1)
+
+    total_train_losses[i] = np.mean(curr_loss)
+    total_test_losses[i] = jnp.mean(eval_loss_fn(aug_test_x, test_y, params))
     total_test_accuracy[i] = jnp.mean(test_pred == test_y)
+    total_train_accuracy[i] = jnp.mean(train_pred == train_y)
 
 
 fig, axs = plt.subplots(ncols=2, figsize=(10, 4))

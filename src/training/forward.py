@@ -1,6 +1,6 @@
 from jax import jit, vmap
 from functools import partial
-from my_project import layers
+from training import layers
 
 
 @partial(jit, static_argnums=2)

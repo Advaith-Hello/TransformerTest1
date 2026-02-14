@@ -1,7 +1,7 @@
 """
 Sample models for usage
-Use my_project.parameterize.parameterize() to init params
-Use my_project.forward.forward() to run the model
+Use training.parameterize.parameterize() to init params
+Use training.forward.forward() to run the model
 
 linear: (d_in, d_out)
     Does W @ x + b
